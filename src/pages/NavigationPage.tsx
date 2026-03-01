@@ -6,7 +6,7 @@ import { MapPin, Shield, Clock, Zap, Info, Link2, ChevronDown, ChevronUp } from 
 import { MOCK_ROUTES, COIMBATORE_ROUTES } from '../data/mockRoutes';
 import { useGeolocation } from '../hooks/useGeolocation';
 import { useRouting } from '../hooks/useRouting';
-import type { Route } from '../types';
+import type { Route, PointOfInterest } from '../types';
 import {
     computeRouteLiveliness, getSegmentColor, getSafetyLabel,
     applyTemporalAdjustment, generateVirtualShadowingLink, getTravelSafetyTips
@@ -41,7 +41,10 @@ function ScoreBar({ value, label, colored = false }: { value: number; label: str
 }
 
 export function NavigationPage() {
-    const [selectedCity, setSelectedCity] = useState<'chennai' | 'coimbatore'>('chennai');
+    // Keep focus on Tamil Nadu — default center will be user's location when available
+    const [selectedCity, setSelectedCity] = useState<'tamilnadu' | 'chennai' | 'coimbatore'>('tamilnadu');
+        const [currentAddress, setCurrentAddress] = useState<string | null>(null);
+        const [nearbyPois, setNearbyPois] = useState<Array<PointOfInterest & { distanceMeters: number }>>([]);
     const [activeRoute, setActiveRoute] = useState<string>('r-bright');
     const [showTips, setShowTips] = useState(true);
     const [shadowingLink, setShadowingLink] = useState<string | null>(null);
@@ -52,11 +55,103 @@ export function NavigationPage() {
 
     useEffect(() => {
         if (!currentPosition) return;
-        const destination = selectedCity === 'chennai'
-            ? ([12.9152, 80.2298] as [number, number])
-            : ([11.0176, 76.9558] as [number, number]);
-        computeRoutes(destination);
+        // If the user selects a named city, compute a route to that city center.
+        const destination = selectedCity === 'coimbatore'
+            ? ([11.0176, 76.9558] as [number, number])
+            : selectedCity === 'chennai'
+                ? ([12.9152, 80.2298] as [number, number])
+                : null;
+        if (destination) computeRoutes(destination);
     }, [selectedCity, currentPosition, computeRoutes]);
+
+    // Haversine distance in meters
+    function computeDistanceMeters(a: [number, number], b: [number, number]) {
+        const toRad = (v: number) => v * Math.PI / 180;
+        const R = 6371000; // meters
+        const dLat = toRad(b[0] - a[0]);
+        const dLon = toRad(b[1] - a[1]);
+        const lat1 = toRad(a[0]);
+        const lat2 = toRad(b[0]);
+        const sinDlat = Math.sin(dLat / 2);
+        const sinDlon = Math.sin(dLon / 2);
+        const c = 2 * Math.atan2(Math.sqrt(sinDlat * sinDlat + Math.cos(lat1) * Math.cos(lat2) * sinDlon * sinDlon), Math.sqrt(1 - (sinDlat * sinDlat + Math.cos(lat1) * Math.cos(lat2) * sinDlon * sinDlon)));
+        return Math.round(R * c);
+    }
+
+    // Reverse geocode current position to a readable address (Nominatim)
+    useEffect(() => {
+        if (!currentPosition) return;
+        let mounted = true;
+        (async () => {
+            try {
+                const [lat, lon] = currentPosition;
+                const url = `https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat=${lat}&lon=${lon}&zoom=18&addressdetails=1`;
+                const r = await fetch(url, { headers: { 'User-Agent': 'ARAN-App/1.0 (contact@aran.app)' } });
+                if (!r.ok) throw new Error('Reverse geocode failed');
+                const data = await r.json();
+                if (!mounted) return;
+                setCurrentAddress(data.display_name || `${data.address?.city || data.address?.town || data.address?.village || ''}`);
+            } catch (err) {
+                console.warn('Reverse geocode failed', err);
+                if (mounted) setCurrentAddress(null);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [currentPosition]);
+
+    // Query Overpass API for nearby safe POIs (police, hospital, pharmacy, atm)
+    useEffect(() => {
+        if (!currentPosition) return;
+        let mounted = true;
+        (async () => {
+            try {
+                const [lat, lon] = currentPosition;
+                const radius = 2500; // meters
+                // Overpass QL: find nodes/ways/relations with amenity in the set around the user
+                const q = `[
+out:json][timeout:15];(
+  node(around:${radius},${lat},${lon})[amenity~"^(police|hospital|pharmacy|atm)$"];
+  way(around:${radius},${lat},${lon})[amenity~"^(police|hospital|pharmacy|atm)$"];
+  relation(around:${radius},${lat},${lon})[amenity~"^(police|hospital|pharmacy|atm)$"];
+);out center 20;`;
+                const resp = await fetch('https://overpass-api.de/api/interpreter', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body: `data=${encodeURIComponent(q)}`,
+                });
+                if (!resp.ok) throw new Error('Overpass query failed');
+                const json = await resp.json();
+                if (!mounted) return;
+                const elems = Array.isArray(json.elements) ? json.elements : [];
+                const pois = elems.map((el: any) => {
+                    const tags = el.tags || {};
+                    const amen = tags.amenity || 'cctv';
+                    const latEl = el.lat ?? el.center?.lat;
+                    const lonEl = el.lon ?? el.center?.lon;
+                    const id = `${el.type}-${el.id}`;
+                    const name = tags.name || `${amen.charAt(0).toUpperCase() + amen.slice(1)}`;
+                    const type = (amen === 'police' || amen === 'hospital' || amen === 'pharmacy' || amen === 'atm') ? amen : 'cctv';
+                    const coords: [number, number] = [latEl, lonEl];
+                    const dist = computeDistanceMeters([lat, lon], coords);
+                    return {
+                        id,
+                        name,
+                        type,
+                        coordinates: coords,
+                        is24x7: /24\/?7|24 hours|always/i.test(tags.opening_hours || tags.service || ''),
+                        distanceMeters: dist,
+                    } as PointOfInterest & { distanceMeters: number };
+                }).filter((p: any) => Number.isFinite(p.coordinates[0]) && Number.isFinite(p.coordinates[1]));
+                // sort by distance and keep top 20
+                pois.sort((a: any, b: any) => a.distanceMeters - b.distanceMeters);
+                setNearbyPois(pois.slice(0, 20));
+            } catch (err) {
+                console.warn('Nearby POI fetch failed', err);
+                if (mounted) setNearbyPois([]);
+            }
+        })();
+        return () => { mounted = false; };
+    }, [currentPosition]);
 
     const liveRoutes = useMemo<Route[]>(() => {
         if (!routingState.routes.length) return [];
@@ -101,7 +196,10 @@ export function NavigationPage() {
     const { label: safetyLabel, level: safetyLevel } = getSafetyLabel(adjustedSafetyScore);
     const tips = useMemo(() => getTravelSafetyTips(new Date().getHours(), selected.type), [selected.type]);
 
-    const mapCenter: LatLngTuple = selectedCity === 'chennai' ? [12.9050, 80.2220] : [11.0140, 76.9660];
+    // Tamil Nadu approximate bounds and default center
+    const TN_BOUNDS: [[number, number], [number, number]] = [[8.0, 76.0], [13.5, 80.6]];
+    const tamilNaduCenter: LatLngTuple = [11.0, 78.7];
+    const mapCenter: LatLngTuple = currentPosition ? [currentPosition[0], currentPosition[1]] : tamilNaduCenter;
 
     const handleGenerateShadowLink = () => {
         const link = generateVirtualShadowingLink(selected.id, 'ec-1');
@@ -139,10 +237,12 @@ export function NavigationPage() {
                 <div className={styles.mapWrapper}>
                     <MapContainer
                         center={mapCenter}
-                        zoom={14}
+                        zoom={13}
                         className={styles.map}
                         zoomControl={true}
                         attributionControl={false}
+                        maxBounds={TN_BOUNDS}
+                        maxBoundsViscosity={0.8}
                     >
                         <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
@@ -218,6 +318,35 @@ export function NavigationPage() {
                                 </Popup>
                             </Marker>
                         ))}
+
+                        {/* Nearby safe places discovered via OSM Overpass */}
+                        {nearbyPois.map((poi) => (
+                            <Marker
+                                key={poi.id}
+                                position={poi.coordinates as LatLngTuple}
+                                icon={createPoiIcon(poi.type)}
+                            >
+                                <Popup>
+                                    <div style={{ minWidth: 180 }}>
+                                        <strong>{poi.name}</strong>
+                                        <div style={{ marginTop: 6, fontSize: 13 }}>{poi.type} • {(poi.distanceMeters / 1000).toFixed(2)} km</div>
+                                        <p style={{ fontSize: '12px', color: '#888', marginTop: 6 }}>{poi.is24x7 ? '✅ Open 24/7' : '⏰ Check hours'}</p>
+                                    </div>
+                                </Popup>
+                            </Marker>
+                        ))}
+
+                        {/* Current location marker + address */}
+                        {currentPosition && (
+                            <Marker position={currentPosition as LatLngTuple}>
+                                <Popup>
+                                    <div style={{ minWidth: 200 }}>
+                                        <strong>You are here</strong>
+                                        <div style={{ marginTop: 6, fontSize: 13 }}>{currentAddress ?? 'Resolving address...'}</div>
+                                    </div>
+                                </Popup>
+                            </Marker>
+                        )}
                     </MapContainer>
 
                     {/* Map Overlay Legend */}
@@ -267,6 +396,30 @@ export function NavigationPage() {
                     </div>
 
                     {/* Liveliness Index */}
+                    {/* Nearby Safe Places */}
+                    <div className={`glass-card ${styles.liveinessCard}`} style={{ marginBottom: 12 }}>
+                        <h3 className={styles.liveinessTitle}>📍 Nearby Safe Places</h3>
+                        {nearbyPois.length === 0 ? (
+                            <p style={{ color: '#888', fontSize: 13, marginTop: 8 }}>No nearby safe places found within 2.5 km.</p>
+                        ) : (
+                            <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
+                                {nearbyPois.map((p) => (
+                                    <li key={p.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                            <div>
+                                                <strong>{p.name}</strong>
+                                                <div style={{ fontSize: 12, color: '#aaa' }}>{p.type}</div>
+                                            </div>
+                                            <div style={{ textAlign: 'right' }}>
+                                                <div style={{ fontWeight: 600 }}>{(p.distanceMeters / 1000).toFixed(2)} km</div>
+                                                <div style={{ fontSize: 12, color: '#aaa' }}>{p.is24x7 ? '24/7' : ''}</div>
+                                            </div>
+                                        </div>
+                                    </li>
+                                ))}
+                            </ul>
+                        )}
+                    </div>
                     <div className={`glass-card ${styles.liveinessCard}`}>
                         <h3 className={styles.liveinessTitle}>
                             <Shield size={16} /> Liveliness Index

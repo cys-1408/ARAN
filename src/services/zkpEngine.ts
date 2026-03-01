@@ -16,9 +16,65 @@
  * - Constraint: |sqrt((lat-target_lat)² + (lng-target_lng)²)| < radius
  */
 
+// @ts-ignore - snarkjs doesn't have type definitions
 import { groth16, utils } from 'snarkjs';
 
+// Utility functions for encoding
+function hexEncode(buffer: Uint8Array): string {
+    return Array.from(buffer).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+function base64urlEncode(buffer: Uint8Array): string {
+    return btoa(String.fromCharCode(...buffer))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=/g, '');
+}
+
+function base64urlDecode(str: string): Uint8Array {
+    const padded = str + '='.repeat((4 - str.length % 4) % 4);
+    const base64 = padded.replace(/-/g, '+').replace(/_/g, '/');
+    const decoded = atob(base64);
+    return new Uint8Array(decoded.split('').map(c => c.charCodeAt(0)));
+}
+
+// Commitment computation for location privacy
+async function computeCommitment(salt: Uint8Array, blindedLat: number, blindedLng: number): Promise<Uint8Array> {
+    const encoder = new TextEncoder();
+    const saltStr = new TextDecoder().decode(salt);
+    const message = `${saltStr}:${blindedLat.toFixed(6)}:${blindedLng.toFixed(6)}`;
+    const data = encoder.encode(message);
+    const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+    return new Uint8Array(hashBuffer);
+}
+
 const VERSION_BYTE = new Uint8Array([0x41, 0x52, 0x4e]); // "ARN" prefix
+
+// Type definitions for snarkjs
+interface SnarkJsLike {
+    groth16: {
+        prove: (wasmPath: string, zkeyPath: string, signals: Record<string, any>) => Promise<{
+            proof: Record<string, any>;
+            publicSignals: any[];
+        }>;
+        verify: (vkey: any, publicSignals: any[], proof: any) => Promise<boolean>;
+    };
+}
+
+// Additional type definitions for ZKP
+interface Groth16LocationProof {
+    proof: Record<string, unknown>;
+    publicSignals: any;
+    generatedAt: string;
+    circuitWasmUrl: string;
+    provingKeyUrl: string;
+}
+
+interface ProximityProof {
+    locationCommitment: any;
+    proximityRadius: number;
+    timestamp: string;
+}
 
 export interface LocationCommitment {
     /** Hex-encoded commitment hash */
@@ -83,7 +139,7 @@ export interface ZKPEngineState {
 
 interface CachedProofEntry {
     expiresAt: number;
-    proof: ProximityProof;
+    proof: Groth16LocationProof;
 }
 
 interface ProofInput {

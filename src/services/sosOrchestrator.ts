@@ -181,6 +181,7 @@ class SOSOrchestrator {
                 longitude,
                 trigger,
                 commitmentHash: commitmentHex,
+                urgencyLevel: trigger === 'gesture' ? 'high' : trigger === 'audio' ? 'critical' : trigger === 'manual' ? 'medium' : 'high',
             };
             dispatchSOS(payload).catch(err => console.error('[ARAN] Dispatch error:', err));
         }

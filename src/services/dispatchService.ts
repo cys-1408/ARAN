@@ -88,6 +88,12 @@ const DISPATCH_TIMEOUT = 15000; // 15 seconds
 const RETRY_ATTEMPTS = 3;
 const RETRY_DELAY = 1000; // 1 second
 
+// Backend endpoint configuration
+const BACKEND_ENDPOINT = import.meta.env.VITE_SOS_ENDPOINT || 'https://aran-api.supabase.co/functions/v1/sos-dispatch';
+
+// Helper function for delays
+const wait = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
 class EnhancedDispatchService {
     private supabase: SupabaseClient;
     private fallbackEndpoint: string;
@@ -740,12 +746,12 @@ function computeIdempotencyKey(payload: DispatchPayload) {
 
 async function dispatchNotification(payload: DispatchPayload): Promise<DispatchResult> {
     if (!('Notification' in window)) {
-        return { stage: 'notification', success: false, error: 'Notification API not available' };
+        return { stage: 'notification', success: false, error: 'Notification API not available', timestamp: new Date().toISOString() };
     }
     try {
         let permission = Notification.permission;
         if (permission === 'default') permission = await Notification.requestPermission();
-        if (permission !== 'granted') return { stage: 'notification', success: false, error: 'Notification permission denied' };
+        if (permission !== 'granted') return { stage: 'notification', success: false, error: 'Notification permission denied', timestamp: new Date().toISOString() };
 
         new Notification('ARAN SOS DISPATCHED', {
             body: `Emergency alert sent to ${payload.contacts.length} contacts.`,
@@ -755,9 +761,9 @@ async function dispatchNotification(payload: DispatchPayload): Promise<DispatchR
             requireInteraction: true,
         });
         if ('vibrate' in navigator) navigator.vibrate([300, 100, 300, 100, 300]);
-        return { stage: 'notification', success: true };
+        return { stage: 'notification', success: true, timestamp: new Date().toISOString() };
     } catch (error) {
-        return { stage: 'notification', success: false, error: (error as Error).message };
+        return { stage: 'notification', success: false, error: (error as Error).message, timestamp: new Date().toISOString() };
     }
 }
 
@@ -775,32 +781,32 @@ async function dispatchSMS(payload: DispatchPayload): Promise<DispatchResult[]> 
             document.body.appendChild(a);
             if (contact.isPrimary) a.click();
             document.body.removeChild(a);
-            results.push({ stage: `sms:${contact.name}`, success: true });
+            results.push({ stage: `sms:${contact.name}`, success: true, timestamp: new Date().toISOString() });
         } catch (error) {
-            results.push({ stage: `sms:${contact.name}`, success: false, error: (error as Error).message });
+            results.push({ stage: `sms:${contact.name}`, success: false, error: (error as Error).message, timestamp: new Date().toISOString() });
         }
     }
     return results;
 }
 
 async function dispatchWebShare(payload: DispatchPayload): Promise<DispatchResult> {
-    if (!navigator.share) return { stage: 'web-share', success: false, error: 'Web Share API not supported' };
+    if (!navigator.share) return { stage: 'web-share', success: false, error: 'Web Share API not supported', timestamp: new Date().toISOString() };
     try {
         await navigator.share({
             title: 'ARAN Emergency Alert',
             text: buildEmergencyMessage(payload),
             url: buildMapsLink(payload.latitude, payload.longitude),
         });
-        return { stage: 'web-share', success: true };
+        return { stage: 'web-share', success: true, timestamp: new Date().toISOString() };
     } catch (error) {
         const message = (error as Error).message || '';
-        if (message.includes('AbortError')) return { stage: 'web-share', success: true, error: 'Share dismissed' };
-        return { stage: 'web-share', success: false, error: message };
+        if (message.includes('AbortError')) return { stage: 'web-share', success: true, error: 'Share dismissed', timestamp: new Date().toISOString() };
+        return { stage: 'web-share', success: false, error: message, timestamp: new Date().toISOString() };
     }
 }
 
 async function dispatchToBackend(payload: DispatchPayload, idempotencyKey: string): Promise<DispatchResult> {
-    if (!BACKEND_ENDPOINT) return { stage: 'backend', success: false, error: 'VITE_SOS_ENDPOINT not configured' };
+    if (!BACKEND_ENDPOINT) return { stage: 'backend', success: false, error: 'VITE_SOS_ENDPOINT not configured', timestamp: new Date().toISOString() };
 
     const requestBody: BackendDispatchRequest = {
         contacts: payload.contacts.map((c) => ({ name: c.name, phone: c.phone, relationship: c.relationship || 'Contact' })),
@@ -813,6 +819,11 @@ async function dispatchToBackend(payload: DispatchPayload, idempotencyKey: strin
         trigger: payload.trigger,
         timestamp: new Date().toISOString(),
         commitmentHash: payload.commitmentHash,
+        deviceMetadata: {
+            userAgent: navigator.userAgent,
+            deviceId: payload.deviceId
+        },
+        urgencyLevel: payload.urgencyLevel,
         app: 'aran-safety-v1',
         idempotencyKey,
     };
@@ -833,7 +844,7 @@ async function dispatchToBackend(payload: DispatchPayload, idempotencyKey: strin
                 signal: AbortSignal.timeout(12_000),
             });
 
-            if (response.ok) return { stage: 'backend', success: true };
+            if (response.ok) return { stage: 'backend', success: true, timestamp: new Date().toISOString() };
             const text = await response.text().catch(() => '');
             lastError = `HTTP ${response.status}: ${text}`;
             if (response.status < 500) break;
@@ -841,7 +852,7 @@ async function dispatchToBackend(payload: DispatchPayload, idempotencyKey: strin
             lastError = (error as Error).message;
         }
     }
-    return { stage: 'backend', success: false, error: lastError };
+    return { stage: 'backend', success: false, error: lastError, timestamp: new Date().toISOString() };
 }
 
 function dispatchEmail(payload: DispatchPayload): DispatchResult {
@@ -854,9 +865,9 @@ function dispatchEmail(payload: DispatchPayload): DispatchResult {
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
-        return { stage: 'email', success: true };
+        return { stage: 'email', success: true, timestamp: new Date().toISOString() };
     } catch (error) {
-        return { stage: 'email', success: false, error: (error as Error).message };
+        return { stage: 'email', success: false, error: (error as Error).message, timestamp: new Date().toISOString() };
     }
 }
 

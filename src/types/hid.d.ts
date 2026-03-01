@@ -20,8 +20,10 @@ interface HIDDevice extends EventTarget {
     readonly vendorId: number;
     readonly productId: number;
     readonly productName: string;
+    readonly serialNumber?: string;
     open(): Promise<void>;
     close(): Promise<void>;
+    sendReport(reportId: number, data: BufferSource): Promise<void>;
     addEventListener(type: 'inputreport', listener: (event: HIDInputReportEvent) => void): void;
     removeEventListener(type: 'inputreport', listener: (event: HIDInputReportEvent) => void): void;
 }

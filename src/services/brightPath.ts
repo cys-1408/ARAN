@@ -17,7 +17,7 @@
  * - Local facility density (police stations, hospitals)
  */
 
-import type { Route, RouteSegment, LivelinessIndex } from '../types';
+import type { Route, RouteSegment, LivelinessIndex, LatLng } from '../types';
 import type { OSRMRoute } from './osrmRouting';
 
 export const MCDA_WEIGHTS = {
@@ -200,11 +200,11 @@ class AdvancedBrightPathEngine {
     }
 
     private convertToOSRMRoute(osrmApiRoute: any): OSRMRoute {
-        const coordinates = osrmApiRoute.geometry.coordinates.map(([lng, lat]: [number, number]) => ({ lat, lng }));
+        const coordinates = osrmApiRoute.geometry.coordinates.map(([lng, lat]: [number, number]): LatLng => [lat, lng]);
         
         // Calculate bounding box
-        const lats = coordinates.map(c => c.lat);
-        const lngs = coordinates.map(c => c.lng);
+        const lats = coordinates.map((c: LatLng) => c[0]);
+        const lngs = coordinates.map((c: LatLng) => c[1]);
         const bbox: [number, number, number, number] = [
             Math.min(...lats),
             Math.min(...lngs), 
@@ -216,7 +216,7 @@ class AdvancedBrightPathEngine {
         const segments = osrmApiRoute.legs || [];
         const routeSegments = segments.map((leg: any) => ({
             coordinates: leg.steps?.map((step: any) => 
-                step.geometry?.coordinates?.map(([lng, lat]: [number, number]) => ({ lat, lng })) || []
+                step.geometry?.coordinates?.map(([lng, lat]: [number, number]): LatLng => [lat, lng]) || []
             ).flat() || [],
             distance: leg.distance || 0,
             duration: leg.duration || 0,
@@ -235,7 +235,7 @@ class AdvancedBrightPathEngine {
     }
 
     private createFallbackRoute(fromLat: number, fromLng: number, toLat: number, toLng: number): OSRMRoute {
-        const coordinates = [{ lat: fromLat, lng: fromLng }, { lat: toLat, lng: toLng }];
+        const coordinates: LatLng[] = [[fromLat, fromLng], [toLat, toLng]];
         const distance = this.calculateDistance(fromLat, fromLng, toLat, toLng) * 1000; // Convert to meters
         const walkingSpeed = 1.4; // m/s average walking speed
         const duration = distance / walkingSpeed;
@@ -257,7 +257,7 @@ class AdvancedBrightPathEngine {
                 Math.max(fromLat, toLat),
                 Math.max(fromLng, toLng)
             ],
-            raw: { fallback: true }
+            raw: { fallback: true } as any
         };
     }
 
@@ -462,7 +462,21 @@ class AdvancedBrightPathEngine {
         for (const segment of segments) {
             if (segment.coordinates.length === 0) continue;
             
-            const segmentFactors = this.analyzeSegmentSafety(segment, heatmapData, timeOfDay);
+            // Convert OSRMRouteSegment to RouteSegment for analysis
+            const routeSegment: RouteSegment = {
+                id: `${route.id}-seg`,
+                coordinates: segment.coordinates,
+                liveinessScore: 70, // Default score
+                factors: {
+                    streetLighting: 70,
+                    commercialDensity: 70,
+                    policeProximity: 70,
+                    crowdReports: 70,
+                    incidentRate: 70
+                }
+            };
+            
+            const segmentFactors = this.analyzeSegmentSafety(routeSegment, heatmapData, timeOfDay);
             
             // Weighted average accumulation
             factors.streetLighting += segmentFactors.streetLighting;
@@ -503,8 +517,8 @@ class AdvancedBrightPathEngine {
     ): SafetyFactors {
         const corridorRadius = 100; // 100 meters
         const relevantPoints = heatmapData.points.filter(point => 
-            segment.coordinates.some(coord => 
-                this.calculateDistance(coord.lat, coord.lng, point.lat, point.lng) * 1000 <= corridorRadius
+            segment.coordinates.some((coord: LatLng) => 
+                this.calculateDistance(coord[0], coord[1], point.lat, point.lng) * 1000 <= corridorRadius
             )
         );
         
@@ -541,7 +555,7 @@ class AdvancedBrightPathEngine {
         
         // Calculate proximity to police stations
         const nearestPoliceDistance = this.findNearestFacilityDistance(
-            segment.coordinates[0],
+            { lat: segment.coordinates[0][0], lng: segment.coordinates[0][1] },
             SAFETY_FACILITIES.policeStations
         );
         const policeProximity = Math.max(0, 100 - nearestPoliceDistance / 50); // 100 = at station, decreases with distance
@@ -645,8 +659,8 @@ class AdvancedBrightPathEngine {
         for (let i = 0; i < allCoords.length; i += 5) {
             const coord = allCoords[i];
             points.push({
-                lat: coord.lat,
-                lng: coord.lng,
+                lat: coord[0],
+                lng: coord[1],
                 risk: 0.3,
                 crowd: 0.6,
                 lighting: 0.7,
@@ -722,9 +736,17 @@ export async function fetchCommunityHeatmap(route: OSRMRoute): Promise<HeatmapRe
                 lng: point.lng,
                 risk: point.risk,
                 crowd: point.crowd,
-                lighting: point.lighting
+                lighting: point.lighting,
+                lastUpdated: new Date().toISOString(),
+                source: 'community' as const,
+                verificationScore: 0.8
             })),
-            fetchedAt: heatmapData.metadata.fetchedAt
+            metadata: {
+                fetchedAt: heatmapData.metadata.fetchedAt,
+                coverage: 'community-reported',
+                dataFreshness: 5,
+                totalReports: heatmapData.points.length
+            }
         };
     } catch {
         return null;
@@ -752,7 +774,7 @@ export function computeOSRMSafetyFromHeatmap(route: OSRMRoute, heatmap: HeatmapR
             verificationScore: 0.7
         })),
         metadata: {
-            fetchedAt: heatmap.fetchedAt,
+            fetchedAt: heatmap.metadata.fetchedAt,
             coverage: 'legacy',
             dataFreshness: 0,
             totalReports: heatmap.points.length
@@ -760,7 +782,18 @@ export function computeOSRMSafetyFromHeatmap(route: OSRMRoute, heatmap: HeatmapR
     };
     
     const factors = brightPathEngine['analyzeSegmentSafety'](
-        { coordinates: route.coordinates, distance: route.distance, duration: route.duration, name: 'route' },
+        {
+            id: 'temp-segment',
+            coordinates: route.coordinates,
+            liveinessScore: 70,
+            factors: {
+                streetLighting: 70,
+                commercialDensity: 70,
+                policeProximity: 70,
+                crowdReports: 70,
+                incidentRate: 70
+            }
+        },
         mockHeatmapData,
         'evening'
     );

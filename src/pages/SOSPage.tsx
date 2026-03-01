@@ -44,7 +44,13 @@ export function SOSPage() {
     const [gestureEnabled, setGestureEnabled] = useState(state.safetyPreferences.gestureDetection);
     const [audioEnabled, setAudioEnabled] = useState(state.safetyPreferences.audioMonitoring);
     const [btHRState, setBtHRState] = useState<BtHRState>(bluetoothHRM.getState());
-    const [hidState, setHidState] = useState<HidHRState>(webHidHeartRate.getState());
+    const [hidState, setHidState] = useState<HidHRState>({
+        status: 'disconnected',
+        deviceName: null,
+        heartRateBpm: null,
+        lastReportAt: null,
+        error: null
+    });
     const [fakeCallState, setFakeCallState] = useState<FakeCallState>('idle');
     const [fakeCallerName] = useState(() => CALLER_NAMES[Math.floor(Math.random() * CALLER_NAMES.length)]);
     const [fakeCallDuration, setFakeCallDuration] = useState(0);
@@ -67,8 +73,15 @@ export function SOSPage() {
 
     useEffect(() => {
         const unsub = webHidHeartRate.subscribe((s) => {
-            setHidState(s);
-            if (s.heartRateBpm !== null) sosOrchestrator.reportHeartRate(s.heartRateBpm);
+            const legacyState = {
+                status: s.connecting ? 'connecting' as const : s.connected ? 'connected' as const : s.error ? 'error' as const : 'disconnected' as const,
+                deviceName: s.device?.name || null,
+                heartRateBpm: s.lastReading?.bpm || null,
+                lastReportAt: s.lastReading?.timestamp || null,
+                error: s.error
+            };
+            setHidState(legacyState);
+            if (legacyState.heartRateBpm !== null) sosOrchestrator.reportHeartRate(legacyState.heartRateBpm);
         });
         return () => { unsub(); };
     }, []);
@@ -355,7 +368,7 @@ export function SOSPage() {
                                         <span>🎙️</span>
                                         <div>
                                             <span className={styles.audioSignalTitle}>"காப்பாத்துங்க" Wake-word</span>
-                                            <span className={styles.audioSignalDesc}>Tamil · TFLite score {Math.round(audioState.wakeWordScore * 100)}% � SpeechRecognition fallback</span>
+                                            <span className={styles.audioSignalDesc}>Tamil · TFLite score {Math.round(audioState.wakeWordScore * 100)}% � SpeechRecognition fallback</span>
                                         </div>
                                         {(audioState.speechSignal === 'wake-word') && <span className="badge badge-danger">Detected!</span>}
                                     </div>

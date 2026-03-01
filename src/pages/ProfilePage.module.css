@@ -1,0 +1,386 @@
+.page {
+    padding: var(--space-8) 0 var(--space-12);
+}
+
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 0 var(--space-4);
+}
+
+.title {
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-6);
+}
+
+/* Profile Card */
+.profileCard {
+    display: flex;
+    align-items: center;
+    gap: var(--space-6);
+    padding: var(--space-6);
+    margin-bottom: var(--space-6);
+    flex-wrap: wrap;
+}
+
+.profileAvatar {}
+
+.avatarCircle {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%);
+    color: white;
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 0 30px var(--color-primary-glow);
+}
+
+.profileInfo {
+    flex: 1;
+}
+
+.nameRow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    margin-bottom: var(--space-2);
+}
+
+.profileName {
+    font-size: var(--text-2xl);
+    font-weight: 700;
+}
+
+.editBtn {
+    padding: var(--space-1) !important;
+}
+
+.nameEditRow {
+    display: flex;
+    gap: var(--space-2);
+    margin-bottom: var(--space-2);
+}
+
+.nameInput {
+    flex: 1;
+}
+
+.profileMeta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    flex-wrap: wrap;
+}
+
+.joinedDate {
+    display: flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+
+/* Grid */
+.grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-5);
+}
+
+@media (min-width: 768px) {
+    .grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+.card {
+    padding: var(--space-5);
+}
+
+.cardHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+}
+
+.cardTitle {
+    font-size: var(--text-base);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+}
+
+/* Contacts */
+.contactsList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.contactItem {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.contactAvatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--color-primary-glow);
+    border: 1px solid rgba(232, 67, 147, 0.3);
+    color: var(--color-primary-light);
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.contactInfo {
+    flex: 1;
+}
+
+.contactName {
+    display: block;
+    font-weight: 600;
+    font-size: var(--text-sm);
+}
+
+.contactSub {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+
+.contactActions {
+    display: flex;
+    gap: var(--space-1);
+}
+
+/* Contact Form */
+.contactForm {
+    background: var(--color-bg-card);
+    border: 1px solid rgba(232, 67, 147, 0.2);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+    margin-top: var(--space-3);
+}
+
+.primaryLabel {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+}
+
+.formActions {
+    display: flex;
+    gap: var(--space-2);
+}
+
+/* Preferences */
+.prefList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4);
+    margin-bottom: var(--space-5);
+}
+
+.prefItem {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+}
+
+.prefIcon {
+    width: 32px;
+    height: 32px;
+    border-radius: var(--radius-md);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.prefInfo {
+    flex: 1;
+}
+
+.prefLabel {
+    display: block;
+    font-weight: 600;
+    font-size: var(--text-sm);
+}
+
+.prefDesc {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+}
+
+/* Privacy */
+.privacySection {
+    background: rgba(16, 185, 129, 0.05);
+    border: 1px solid rgba(16, 185, 129, 0.15);
+    border-radius: var(--radius-xl);
+    padding: var(--space-4);
+}
+
+.privacyHeader {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-weight: 700;
+    font-size: var(--text-sm);
+    color: var(--color-safe-light);
+    margin-bottom: var(--space-3);
+}
+
+.privacyIcon {
+    flex-shrink: 0;
+}
+
+.zkpBadge {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+}
+
+.zkpDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-safe);
+    flex-shrink: 0;
+    margin-top: 3px;
+    animation: safe-pulse 2s infinite;
+}
+
+.zkpTitle {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--color-safe-light);
+    margin-bottom: 2px;
+}
+
+.zkpDesc {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    line-height: 1.5;
+}
+
+.blurRadiusRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--text-xs);
+    margin-bottom: var(--space-1);
+    margin-top: var(--space-3);
+}
+
+.blurLabel {
+    color: var(--color-text-secondary);
+}
+
+.blurValue {
+    font-weight: 700;
+    color: var(--color-safe-light);
+    font-family: var(--font-mono);
+}
+
+/* History */
+.historyCard {
+    grid-column: 1 / -1;
+}
+
+.historyList {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+}
+
+.emptyHistory {
+    text-align: center;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm);
+    padding: var(--space-8);
+}
+
+.historyItem {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    padding: var(--space-3);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+}
+
+.historyDot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-danger);
+    margin-top: 4px;
+    flex-shrink: 0;
+}
+
+.historyDotResolved {
+    background: var(--color-safe);
+}
+
+.historyDotTest {
+    background: var(--color-warning);
+}
+
+.historyInfo {
+    flex: 1;
+}
+
+.historyType {
+    display: block;
+    font-size: var(--text-sm);
+    font-weight: 600;
+}
+
+.historyLocation {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-top: 2px;
+}
+
+.historyRight {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: var(--space-1);
+    flex-shrink: 0;
+}
+
+.historyTime {
+    font-size: 10px;
+    color: var(--color-text-muted);
+    font-family: var(--font-mono);
+}

@@ -1,0 +1,188 @@
+import type { Route } from '../types';
+
+// Mock routes for Chennai OMR corridor
+export const MOCK_ROUTES: Route[] = [
+    {
+        id: 'r-bright',
+        name: 'Bright Path (Recommended)',
+        type: 'bright-path',
+        from: 'Sholinganallur Signal',
+        to: 'Perungudi OMR',
+        distance: 3.2,
+        durationMinutes: 14,
+        safetyScore: 87,
+        liveinessScore: 91,
+        coordinates: [
+            [12.9010, 80.2279],
+            [12.9048, 80.2261],
+            [12.9085, 80.2248],
+            [12.9120, 80.2230],
+            [12.9162, 80.2215],
+            [12.9200, 80.2200],
+            [12.9240, 80.2180],
+            [12.9280, 80.2155],
+        ],
+        segments: [
+            {
+                id: 'seg-b1',
+                coordinates: [[12.9010, 80.2279], [12.9048, 80.2261], [12.9085, 80.2248]],
+                liveinessScore: 94,
+                factors: {
+                    streetLighting: 95,
+                    commercialDensity: 92,
+                    policeProximity: 88,
+                    crowdReports: 97,
+                    incidentRate: 96,
+                },
+            },
+            {
+                id: 'seg-b2',
+                coordinates: [[12.9085, 80.2248], [12.9120, 80.2230], [12.9162, 80.2215]],
+                liveinessScore: 85,
+                factors: {
+                    streetLighting: 80,
+                    commercialDensity: 90,
+                    policeProximity: 75,
+                    crowdReports: 88,
+                    incidentRate: 92,
+                },
+            },
+            {
+                id: 'seg-b3',
+                coordinates: [[12.9162, 80.2215], [12.9200, 80.2200], [12.9240, 80.2180], [12.9280, 80.2155]],
+                liveinessScore: 92,
+                factors: {
+                    streetLighting: 98,
+                    commercialDensity: 88,
+                    policeProximity: 90,
+                    crowdReports: 94,
+                    incidentRate: 91,
+                },
+            },
+        ],
+        pois: [
+            { id: 'poi-1', name: 'Sholinganallur Police Station', type: 'police', coordinates: [12.9015, 80.2290], is24x7: true },
+            { id: 'poi-2', name: 'Amma Canteen – OMR', type: 'amma-canteen', coordinates: [12.9060, 80.2265], is24x7: false },
+            { id: 'poi-3', name: 'Apollo Pharmacy', type: 'pharmacy', coordinates: [12.9130, 80.2235], is24x7: true },
+            { id: 'poi-4', name: 'State Bank ATM', type: 'atm', coordinates: [12.9180, 80.2220], is24x7: true },
+            { id: 'poi-5', name: 'Government Hospital Perungudi', type: 'hospital', coordinates: [12.9260, 80.2170], is24x7: true },
+        ],
+        riskZones: [
+            {
+                id: 'rz-1',
+                description: 'Low lighting near construction zone — increased caution after 9pm',
+                severity: 'low',
+                coordinates: [[12.9085, 80.2248], [12.9095, 80.2240], [12.9110, 80.2245], [12.9100, 80.2255]],
+                reportCount: 3,
+                lastReported: new Date('2026-02-20').toISOString(),
+            },
+        ],
+    },
+    {
+        id: 'r-fast',
+        name: 'Fastest Route',
+        type: 'fastest',
+        from: 'Sholinganallur Signal',
+        to: 'Perungudi OMR',
+        distance: 2.8,
+        durationMinutes: 10,
+        safetyScore: 52,
+        liveinessScore: 44,
+        coordinates: [
+            [12.9010, 80.2279],
+            [12.9035, 80.2310],
+            [12.9060, 80.2340],
+            [12.9100, 80.2360],
+            [12.9150, 80.2320],
+            [12.9200, 80.2270],
+            [12.9250, 80.2210],
+            [12.9280, 80.2155],
+        ],
+        segments: [
+            {
+                id: 'seg-f1',
+                coordinates: [[12.9010, 80.2279], [12.9035, 80.2310], [12.9060, 80.2340]],
+                liveinessScore: 35,
+                factors: {
+                    streetLighting: 20,
+                    commercialDensity: 30,
+                    policeProximity: 55,
+                    crowdReports: 40,
+                    incidentRate: 30,
+                },
+            },
+            {
+                id: 'seg-f2',
+                coordinates: [[12.9060, 80.2340], [12.9100, 80.2360], [12.9150, 80.2320]],
+                liveinessScore: 48,
+                factors: {
+                    streetLighting: 45,
+                    commercialDensity: 50,
+                    policeProximity: 40,
+                    crowdReports: 52,
+                    incidentRate: 55,
+                },
+            },
+            {
+                id: 'seg-f3',
+                coordinates: [[12.9150, 80.2320], [12.9200, 80.2270], [12.9250, 80.2210], [12.9280, 80.2155]],
+                liveinessScore: 52,
+                factors: {
+                    streetLighting: 55,
+                    commercialDensity: 48,
+                    policeProximity: 50,
+                    crowdReports: 56,
+                    incidentRate: 50,
+                },
+            },
+        ],
+        pois: [
+            { id: 'poi-6', name: 'SRM Hospital', type: 'hospital', coordinates: [12.9100, 80.2360], is24x7: true },
+        ],
+        riskZones: [
+            {
+                id: 'rz-2',
+                description: 'Isolated service road — poorly lit, minimal foot traffic after 8pm',
+                severity: 'high',
+                coordinates: [[12.9035, 80.2310], [12.9050, 80.2300], [12.9070, 80.2335], [12.9055, 80.2345]],
+                reportCount: 12,
+                lastReported: new Date('2026-02-25').toISOString(),
+            },
+            {
+                id: 'rz-3',
+                description: 'Unmarked construction zone with no CCTV coverage',
+                severity: 'medium',
+                coordinates: [[12.9100, 80.2360], [12.9115, 80.2350], [12.9125, 80.2365], [12.9110, 80.2375]],
+                reportCount: 7,
+                lastReported: new Date('2026-02-22').toISOString(),
+            },
+        ],
+    },
+];
+
+export const COIMBATORE_ROUTES: Route[] = [
+    {
+        id: 'r-cbe-bright',
+        name: 'Bright Path — RS Puram to Gandhipuram',
+        type: 'bright-path',
+        from: 'RS Puram',
+        to: 'Gandhipuram',
+        distance: 2.1,
+        durationMinutes: 11,
+        safetyScore: 92,
+        liveinessScore: 95,
+        coordinates: [
+            [11.0085, 76.9601],
+            [11.0110, 76.9640],
+            [11.0140, 76.9670],
+            [11.0165, 76.9690],
+            [11.0190, 76.9718],
+        ],
+        segments: [],
+        pois: [
+            { id: 'poi-cbe-1', name: 'Coimbatore Central Police', type: 'police', coordinates: [11.0130, 76.9655], is24x7: true },
+            { id: 'poi-cbe-2', name: 'Amma Canteen – DB Road', type: 'amma-canteen', coordinates: [11.0155, 76.9680], is24x7: false },
+        ],
+        riskZones: [],
+    },
+];

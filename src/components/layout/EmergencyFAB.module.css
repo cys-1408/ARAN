@@ -1,0 +1,79 @@
+.fabContainer {
+    position: fixed;
+    bottom: calc(var(--bottom-nav-height) + var(--space-4));
+    right: var(--space-5);
+    z-index: var(--z-fab);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+@media (min-width: 1024px) {
+    .fabContainer {
+        bottom: var(--space-6);
+    }
+}
+
+.pulseRing {
+    position: absolute;
+    width: var(--fab-size);
+    height: var(--fab-size);
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.4);
+    animation: pulse-ring 2s ease-out infinite;
+    pointer-events: none;
+}
+
+.fab {
+    position: relative;
+    width: var(--fab-size);
+    height: var(--fab-size);
+    border-radius: 50%;
+    background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    cursor: pointer;
+    transition: all var(--transition-spring);
+    box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5), 0 0 0 3px rgba(239, 68, 68, 0.2);
+    border: none;
+    z-index: 1;
+}
+
+.fab:hover {
+    transform: scale(1.08);
+    box-shadow: 0 6px 30px rgba(239, 68, 68, 0.65), 0 0 0 5px rgba(239, 68, 68, 0.2);
+}
+
+.fabPressed {
+    transform: scale(0.94) !important;
+}
+
+.fabActive {
+    background: linear-gradient(135deg, #ef4444 0%, #7f1d1d 100%);
+    animation: sos-pulse 1.5s infinite;
+}
+
+.fabIntentWindow {
+    background: linear-gradient(135deg, #f97316 0%, #c2410c 100%);
+    animation: sos-pulse 0.8s infinite;
+}
+
+.icon,
+.iconActive {
+    display: block;
+}
+
+.iconActive {
+    animation: float 1.5s ease-in-out infinite;
+}
+
+.fabLabel {
+    font-size: 9px;
+    font-weight: 800;
+    letter-spacing: 0.12em;
+    line-height: 1;
+}

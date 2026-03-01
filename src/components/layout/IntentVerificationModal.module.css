@@ -1,0 +1,143 @@
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(5, 2, 15, 0.88);
+    backdrop-filter: blur(12px);
+    z-index: var(--z-sos-overlay);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--space-4);
+    animation: fadeIn 0.2s ease-out;
+}
+
+.modal {
+    background: var(--color-bg-tertiary);
+    border: 1px solid rgba(239, 68, 68, 0.4);
+    border-radius: var(--radius-2xl);
+    padding: var(--space-8);
+    max-width: 400px;
+    width: 100%;
+    box-shadow: 0 0 60px rgba(239, 68, 68, 0.2), var(--shadow-lg);
+    animation: scaleIn 0.3s var(--transition-spring);
+    text-align: center;
+}
+
+.header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+    text-align: left;
+}
+
+.sosIcon {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    background: rgba(239, 68, 68, 0.15);
+    border: 2px solid rgba(239, 68, 68, 0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #f87171;
+    flex-shrink: 0;
+    animation: sos-pulse 1.5s infinite;
+}
+
+.headerText {
+    flex: 1;
+}
+
+.title {
+    font-size: var(--text-xl);
+    font-weight: 700;
+    color: #f87171;
+    margin-bottom: var(--space-1);
+}
+
+.trigger {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+}
+
+.countdownSection {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-2);
+    margin-bottom: var(--space-6);
+}
+
+.countdownRing {
+    position: relative;
+    width: 80px;
+    height: 80px;
+}
+
+.ringsvg {
+    width: 80px;
+    height: 80px;
+    transform: rotate(-90deg);
+}
+
+.ringTrack {
+    fill: none;
+    stroke: rgba(239, 68, 68, 0.15);
+    stroke-width: 6;
+}
+
+.ringFill {
+    fill: none;
+    stroke: #ef4444;
+    stroke-width: 6;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.9s linear;
+}
+
+.countdownNum {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-3xl);
+    font-weight: 800;
+    color: #f87171;
+    font-family: var(--font-mono);
+}
+
+.countdownLabel {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    font-weight: 500;
+}
+
+.description {
+    font-size: var(--text-sm);
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    margin-bottom: var(--space-6);
+}
+
+.actions {
+    margin-bottom: var(--space-4);
+}
+
+.actions button {
+    width: 100%;
+    padding: var(--space-4);
+    font-size: var(--text-base);
+}
+
+.hint {
+    font-size: var(--text-xs);
+    color: var(--color-text-muted);
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-2);
+}
+
+.hintIcon {
+    flex-shrink: 0;
+}

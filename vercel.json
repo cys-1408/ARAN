@@ -2,10 +2,5 @@
   "buildCommand": "npm install --legacy-peer-deps && npm run build",
   "outputDirectory": "dist",
   "installCommand": "npm install --legacy-peer-deps",
-  "framework": "vite",
-  "functions": {
-    "src/api/**/*.ts": {
-      "runtime": "@vercel/node@3"
-    }
-  }
+  "framework": "vite"
 }

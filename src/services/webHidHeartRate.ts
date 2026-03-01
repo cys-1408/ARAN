@@ -320,13 +320,13 @@ class WearableHeartRateEngine {
 
         try {
             // Request initial data
-            await this.device.sendReport(0x01, this.deviceProfile.commands.heartRate.buffer);
+            await this.device.sendReport(0x01, new Uint8Array(this.deviceProfile.commands.heartRate));
             
             // Set up periodic monitoring
             this.monitoringInterval = setInterval(async () => {
                 if (this.device && this.deviceProfile && this.state.connected) {
                     try {
-                        await this.device.sendReport(0x01, this.deviceProfile.commands.heartRate.buffer);
+                        await this.device.sendReport(0x01, new Uint8Array(this.deviceProfile.commands.heartRate));
                     } catch (error) {
                         console.warn('Failed to request heart rate data:', error);
                     }
@@ -337,7 +337,7 @@ class WearableHeartRateEngine {
             setTimeout(async () => {
                 if (this.device && this.deviceProfile) {
                     try {
-                        await this.device.sendReport(0x02, this.deviceProfile.commands.batteryLevel.buffer);
+                        await this.device.sendReport(0x02, new Uint8Array(this.deviceProfile.commands.batteryLevel));
                     } catch (error) {
                         console.warn('Failed to request battery level:', error);
                     }

@@ -17,7 +17,7 @@
  */
 
 // @ts-ignore - snarkjs doesn't have type definitions
-import { groth16, utils } from 'snarkjs';
+// Snarkjs is loaded dynamically via loadSnarkJsRuntime
 
 // Utility functions for encoding
 function hexEncode(buffer: Uint8Array): string {
@@ -53,7 +53,11 @@ const VERSION_BYTE = new Uint8Array([0x41, 0x52, 0x4e]); // "ARN" prefix
 // Type definitions for snarkjs
 interface SnarkJsLike {
     groth16: {
-        prove: (wasmPath: string, zkeyPath: string, signals: Record<string, any>) => Promise<{
+        fullProve: (input: Record<string, any>, wasmPath: string, zkeyPath: string) => Promise<{
+            proof: Record<string, any>;
+            publicSignals: any[];
+        }>;
+        prove: (input: Record<string, any>, wasmPath: string, zkeyPath: string) => Promise<{
             proof: Record<string, any>;
             publicSignals: any[];
         }>;
@@ -133,7 +137,7 @@ export interface ZKPEngineState {
 
 interface CachedProofEntry {
     expiresAt: number;
-    proof: Groth16LocationProof;
+    proof: ProximityProof | Groth16LocationProof;
 }
 
 interface ProofInput {
@@ -316,7 +320,7 @@ class AdvancedZKPEngine {
             const cached = proofCache.get(cacheKey);
             if (cached && cached.expiresAt > Date.now()) {
                 console.log('Using cached proximity proof');
-                return cached.proof;
+                return cached.proof as ProximityProof;
             }
 
             console.log('Generating new proximity proof...');
@@ -394,7 +398,8 @@ class AdvancedZKPEngine {
     }> {
         try {
             // Use snarkjs to generate Groth16 proof
-            const fullProveResult = await groth16.fullProve(
+            const snarkjs = await loadSnarkJsRuntime();
+            const fullProveResult = await snarkjs.groth16.fullProve(
                 input,
                 CIRCUIT_ARTIFACTS.wasmPath,
                 CIRCUIT_ARTIFACTS.zkeyPath
@@ -491,7 +496,8 @@ class AdvancedZKPEngine {
 
             if (this.state.verificationKeyLoaded && this.verificationKey) {
                 // Real Groth16 verification
-                return await groth16.verify(
+                const snarkjs = await loadSnarkJsRuntime();
+                return await snarkjs.groth16.verify(
                     this.verificationKey,
                     proof.publicSignals,
                     proof.proof
@@ -877,7 +883,7 @@ export async function generateGroth16LocationProof(
     pruneProofCache();
     const cached = proofCache.get(cacheKey);
     if (cached && cached.expiresAt > Date.now()) {
-        return cached.proof;
+        return cached.proof as Groth16LocationProof;
     }
 
     const snarkjs = await loadSnarkJsRuntime();
@@ -896,7 +902,7 @@ export async function generateGroth16LocationProof(
     if (!assertProofShape(proof)) throw new Error('Groth16 proof has invalid shape');
     assertPublicSignals(publicSignals);
 
-    const result = {
+    const result: Groth16LocationProof = {
         proof,
         publicSignals,
         generatedAt: new Date().toISOString(),

@@ -104,7 +104,7 @@ export interface ProximityProof {
     /** Public signals for verification */
     publicSignals: string[];
     /** Commitment to actual location */
-    locationCommitment: string;
+    locationCommitment: string | LocationCommitment;
     /** Proves proximity to target without revealing exact location */
     proximityRadius: number;
     /** Timestamp of proof generation */

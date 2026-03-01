@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect } from 'react';
-import { MapContainer, TileLayer, Polyline, Polygon, Marker, Popup } from 'react-leaflet';
-import { LatLngTuple, divIcon } from 'leaflet';
+import { MapContainer, TileLayer, Polyline, Polygon, Marker, Popup, useMap } from 'react-leaflet';
+import { LatLngTuple, divIcon, Map as LeafletMap } from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, Shield, Clock, Zap, Info, Link2, ChevronDown, ChevronUp } from 'lucide-react';
 import { MOCK_ROUTES, COIMBATORE_ROUTES } from '../data/mockRoutes';
@@ -45,6 +45,8 @@ export function NavigationPage() {
     const [selectedCity, setSelectedCity] = useState<'tamilnadu' | 'chennai' | 'coimbatore'>('tamilnadu');
         const [currentAddress, setCurrentAddress] = useState<string | null>(null);
         const [nearbyPois, setNearbyPois] = useState<Array<PointOfInterest & { distanceMeters: number }>>([]);
+        const [poiRadiusMeters, setPoiRadiusMeters] = useState<number>(2500);
+        const [mapInstance, setMapInstance] = useState<LeafletMap | null>(null);
     const [activeRoute, setActiveRoute] = useState<string>('r-bright');
     const [showTips, setShowTips] = useState(true);
     const [shadowingLink, setShadowingLink] = useState<string | null>(null);
@@ -99,59 +101,68 @@ export function NavigationPage() {
         return () => { mounted = false; };
     }, [currentPosition]);
 
-    // Query Overpass API for nearby safe POIs (police, hospital, pharmacy, atm)
-    useEffect(() => {
+    // Fetch nearby POIs with caching and manual refresh
+    async function fetchNearbyPois(radiusMetersOverride?: number) {
         if (!currentPosition) return;
-        let mounted = true;
-        (async () => {
-            try {
-                const [lat, lon] = currentPosition;
-                const radius = 2500; // meters
-                // Overpass QL: find nodes/ways/relations with amenity in the set around the user
-                const q = `[
+        const [lat, lon] = currentPosition;
+        const radius = radiusMetersOverride ?? poiRadiusMeters;
+        const cacheKey = `pois:${Math.round(lat*10000)}:${Math.round(lon*10000)}:${radius}`;
+        try {
+            const cached = sessionStorage.getItem(cacheKey);
+            if (cached) {
+                setNearbyPois(JSON.parse(cached));
+                return;
+            }
+        } catch {}
+
+        try {
+            const q = `[
 out:json][timeout:15];(
   node(around:${radius},${lat},${lon})[amenity~"^(police|hospital|pharmacy|atm)$"];
   way(around:${radius},${lat},${lon})[amenity~"^(police|hospital|pharmacy|atm)$"];
   relation(around:${radius},${lat},${lon})[amenity~"^(police|hospital|pharmacy|atm)$"];
-);out center 20;`;
-                const resp = await fetch('https://overpass-api.de/api/interpreter', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                    body: `data=${encodeURIComponent(q)}`,
-                });
-                if (!resp.ok) throw new Error('Overpass query failed');
-                const json = await resp.json();
-                if (!mounted) return;
-                const elems = Array.isArray(json.elements) ? json.elements : [];
-                const pois = elems.map((el: any) => {
-                    const tags = el.tags || {};
-                    const amen = tags.amenity || 'cctv';
-                    const latEl = el.lat ?? el.center?.lat;
-                    const lonEl = el.lon ?? el.center?.lon;
-                    const id = `${el.type}-${el.id}`;
-                    const name = tags.name || `${amen.charAt(0).toUpperCase() + amen.slice(1)}`;
-                    const type = (amen === 'police' || amen === 'hospital' || amen === 'pharmacy' || amen === 'atm') ? amen : 'cctv';
-                    const coords: [number, number] = [latEl, lonEl];
-                    const dist = computeDistanceMeters([lat, lon], coords);
-                    return {
-                        id,
-                        name,
-                        type,
-                        coordinates: coords,
-                        is24x7: /24\/?7|24 hours|always/i.test(tags.opening_hours || tags.service || ''),
-                        distanceMeters: dist,
-                    } as PointOfInterest & { distanceMeters: number };
-                }).filter((p: any) => Number.isFinite(p.coordinates[0]) && Number.isFinite(p.coordinates[1]));
-                // sort by distance and keep top 20
-                pois.sort((a: any, b: any) => a.distanceMeters - b.distanceMeters);
-                setNearbyPois(pois.slice(0, 20));
-            } catch (err) {
-                console.warn('Nearby POI fetch failed', err);
-                if (mounted) setNearbyPois([]);
-            }
-        })();
-        return () => { mounted = false; };
-    }, [currentPosition]);
+);out center 50;`;
+            const resp = await fetch('https://overpass-api.de/api/interpreter', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: `data=${encodeURIComponent(q)}`,
+            });
+            if (!resp.ok) throw new Error('Overpass query failed');
+            const json = await resp.json();
+            const elems = Array.isArray(json.elements) ? json.elements : [];
+            const pois = elems.map((el: any) => {
+                const tags = el.tags || {};
+                const amen = tags.amenity || 'cctv';
+                const latEl = el.lat ?? el.center?.lat;
+                const lonEl = el.lon ?? el.center?.lon;
+                const id = `${el.type}-${el.id}`;
+                const name = tags.name || `${amen.charAt(0).toUpperCase() + amen.slice(1)}`;
+                const type = (amen === 'police' || amen === 'hospital' || amen === 'pharmacy' || amen === 'atm') ? amen : 'cctv';
+                const coords: [number, number] = [latEl, lonEl];
+                const dist = computeDistanceMeters([lat, lon], coords);
+                return {
+                    id,
+                    name,
+                    type,
+                    coordinates: coords,
+                    is24x7: /24\/?7|24 hours|always/i.test(tags.opening_hours || tags.service || ''),
+                    distanceMeters: dist,
+                } as PointOfInterest & { distanceMeters: number };
+            }).filter((p: any) => Number.isFinite(p.coordinates[0]) && Number.isFinite(p.coordinates[1]));
+            pois.sort((a: any, b: any) => a.distanceMeters - b.distanceMeters);
+            const sliced = pois.slice(0, 40);
+            setNearbyPois(sliced);
+            try { sessionStorage.setItem(cacheKey, JSON.stringify(sliced)); } catch {}
+        } catch (err) {
+            console.warn('Nearby POI fetch failed', err);
+            setNearbyPois([]);
+        }
+    }
+
+    useEffect(() => {
+        if (!currentPosition) return;
+        fetchNearbyPois();
+    }, [currentPosition, poiRadiusMeters]);
 
     const liveRoutes = useMemo<Route[]>(() => {
         if (!routingState.routes.length) return [];
@@ -244,6 +255,17 @@ out:json][timeout:15];(
                         maxBounds={TN_BOUNDS}
                         maxBoundsViscosity={0.8}
                     >
+                        {/* Attach map instance via child hook */}
+                        {
+                            (function MapReadyConnector() {
+                                function Inner() {
+                                    const map = useMap();
+                                    useEffect(() => { setMapInstance(map); }, [map]);
+                                    return null;
+                                }
+                                return <Inner />;
+                            })()
+                        }
                         <TileLayer
                             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                             attribution="© OpenStreetMap"
@@ -399,12 +421,24 @@ out:json][timeout:15];(
                     {/* Nearby Safe Places */}
                     <div className={`glass-card ${styles.liveinessCard}`} style={{ marginBottom: 12 }}>
                         <h3 className={styles.liveinessTitle}>📍 Nearby Safe Places</h3>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            <input
+                                type="number"
+                                min={250}
+                                max={10000}
+                                step={250}
+                                value={poiRadiusMeters}
+                                onChange={(e) => setPoiRadiusMeters(Number(e.target.value))}
+                                style={{ width: 120, padding: '6px 8px', borderRadius: 6 }}
+                            />
+                            <button className="btn btn-outline" onClick={() => fetchNearbyPois()} style={{ padding: '6px 10px' }}>Refresh POIs</button>
+                        </div>
                         {nearbyPois.length === 0 ? (
-                            <p style={{ color: '#888', fontSize: 13, marginTop: 8 }}>No nearby safe places found within 2.5 km.</p>
+                            <p style={{ color: '#888', fontSize: 13, marginTop: 8 }}>No nearby safe places found within selected radius.</p>
                         ) : (
                             <ul style={{ listStyle: 'none', padding: 0, marginTop: 8 }}>
                                 {nearbyPois.map((p) => (
-                                    <li key={p.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
+                                    <li key={p.id} style={{ padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', cursor: 'pointer' }} onClick={() => { if (mapInstance) { mapInstance.setView(p.coordinates, 16); } }}>
                                         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                             <div>
                                                 <strong>{p.name}</strong>

@@ -70,12 +70,6 @@ interface Groth16LocationProof {
     provingKeyUrl: string;
 }
 
-interface ProximityProof {
-    locationCommitment: any;
-    proximityRadius: number;
-    timestamp: string;
-}
-
 export interface LocationCommitment {
     /** Hex-encoded commitment hash */
     commitmentHex: string;

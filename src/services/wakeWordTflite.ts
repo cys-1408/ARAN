@@ -352,6 +352,39 @@ class TamilWakeWordEngine {
                 melSpec[f * melBins + b] = Math.log(melPow[b] + 1e-10);
             }
         }
+
+        // Ensure fixed number of frames (100) for the CNN input expected shape
+        const TARGET_FRAMES = 100;
+        if (nFrames === TARGET_FRAMES) {
+            return this.normalizeMelSpectrogram(melSpec);
+        }
+
+        // If we have fewer frames, pad with low-energy frames (zeros)
+        if (nFrames < TARGET_FRAMES) {
+            const padded = new Float32Array(melBins * TARGET_FRAMES);
+            padded.set(melSpec, 0);
+            // pad remaining frames with a small floor value to avoid exact zeros
+            const floor = -12.0; // corresponds to very low log-energy
+            for (let f = nFrames; f < TARGET_FRAMES; f++) {
+                for (let b = 0; b < melBins; b++) {
+                    padded[f * melBins + b] = floor;
+                }
+            }
+            return this.normalizeMelSpectrogram(padded);
+        }
+
+        // If we have more frames than expected, trim to the most recent TARGET_FRAMES
+        if (nFrames > TARGET_FRAMES) {
+            const trimmed = new Float32Array(melBins * TARGET_FRAMES);
+            const startFrame = nFrames - TARGET_FRAMES;
+            for (let f = 0; f < TARGET_FRAMES; f++) {
+                const srcOff = (startFrame + f) * melBins;
+                const dstOff = f * melBins;
+                trimmed.set(melSpec.subarray(srcOff, srcOff + melBins), dstOff);
+            }
+            return this.normalizeMelSpectrogram(trimmed);
+        }
+
         return this.normalizeMelSpectrogram(melSpec);
     }
 
